@@ -1,5 +1,5 @@
 
-export function initWixWhiteCMS($w, wixData, wixSite) {
+export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
 
     return $w.onReady(function () {
         const context = wixSite.lightbox.getContext();
@@ -32,6 +32,10 @@ export function initWixWhiteCMS($w, wixData, wixSite) {
     });
 
     function bindEventsToForm(typeForm, relatedComp, page, key, index, itemId) {
+
+        typeForm.onMouseIn(()=>{
+            wixStorage.session.setItem('blink', relatedComp.id);
+        });
 
         var feildToComp = getAllComponents(typeForm).reduce((acc, comp) => {
             if (comp.type === '$w.Text') {
@@ -106,14 +110,33 @@ export function initWixWhiteCMS($w, wixData, wixSite) {
     }
 }
 
-export function initWixWhite($w, wixData, wixSite) {
+export function initWixWhite($w, wixData, wixSite, wixStorage) {
 
     const dbReady = pull();
     
     return $w.onReady(() => {
         dbReady.then(startSync);
+        setInterval(blink, 100);
     });
 
+
+    function blink(){
+        let id = wixStorage.session.getItem('blink');
+        if(id){
+            wixStorage.session.removeItem('blink');
+
+            function flicker(comp, times = 2){
+                comp.hide();
+                setTimeout(()=>{
+                    comp.show();
+                    if(times > 1){
+                        setTimeout(()=>{flicker(comp, times-1)}, 100);
+                    }
+                }, 100);
+            }
+            flicker($w(`#${id}`));
+        }
+    }
 
     function startSync(initialData) {
         initialData.items.forEach(updatePage);
