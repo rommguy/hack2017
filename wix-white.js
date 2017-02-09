@@ -149,10 +149,10 @@ export function initWixWhite($w, wixData, wixSite, wixStorage) {
 
     function openCMS() {
         console.log('openCMS');
-        const dataset = $w('#dynamicDataset')[0];
+        const dataset = $w('#dynamicDataset');
         const isDynamic = !!dataset;
         let dbItem;
-        if (dataset) {
+        if (dataset.length !== 0) {
             dbItem = dataset.getCurrentItem();
         }
         const page = getCurrentPage();
@@ -192,9 +192,9 @@ export function initWixWhite($w, wixData, wixSite, wixStorage) {
     }
 
     function updatePage(page) {
-        const dataset = $w('#dynamicDataset')[0];
+        const dataset = $w('#dynamicDataset');
         let dbItem;
-        if (dataset) {
+        if (dataset.length !== 0) {
             dbItem = dataset.getCurrentItem();
         }
 
