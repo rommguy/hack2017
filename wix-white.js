@@ -25,13 +25,13 @@ export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
             groups[key].forEach((comp, index) => {
                 if (inputsByType[key][index]) {
                     inputsByType[key][index].expand();
-                    bindEventsToForm(inputsByType[key][index], comp, context.page, key, index, context.itemId);
+                    bindEventsToForm(inputsByType[key][index], comp, context.page, key, index, context.itemId, context.lang);
                 }
             });
         });
     });
 
-    function bindEventsToForm(typeForm, relatedComp, page, key, index, itemId) {
+    function bindEventsToForm(typeForm, relatedComp, page, key, index, itemId, lang) {
 
         typeForm.onMouseIn(()=>{
             wixStorage.session.setItem('blink', relatedComp.id);
@@ -64,7 +64,7 @@ export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
                 function deferSave(e){
                     clearTimeout(deferSave.tmid);
                     deferSave.tmid = setTimeout(function(){
-                        saveToDB(relatedComp, page, 'text', e.target.value, itemId)
+                        saveToDB(relatedComp, page, 'text', e.target.value, itemId, lang)
                     }, 300);
                 }
                 feildToComp.text.onChange(deferSave);
@@ -76,7 +76,7 @@ export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
                 feildToComp.imageuploader.onChange(() => {
                     feildToComp.imageuploader.startUpload().then((uploadedFile) => {
                         feildToComp.image.src = uploadedFile.url;
-                        saveToDB(relatedComp, page, 'src', uploadedFile.url, itemId);
+                        saveToDB(relatedComp, page, 'src', uploadedFile.url, itemId, lang);
                     });
                 });
             }
@@ -86,9 +86,9 @@ export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
 
     }
 
-    function saveToDB(relatedComp, page, key, value, itemId) {
-        console.log('saveToDB', relatedComp.id, page && page.title, key, value);
-        const cmsKey = itemId ? '_' + itemId : page.title;
+    function saveToDB(relatedComp, page, key, value, itemId, lang = 'En') {
+        console.log('saveToDB', relatedComp.id, page && page.title, key, value, lang);
+        const cmsKey = (itemId ? '_' + itemId : page.title) + ('_' + lang);
         wixData.get('cms', cmsKey).then((data) => {
             if (data) {
                 if (data.components[relatedComp.id]) {
@@ -109,7 +109,7 @@ export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
 }
 
 export function initWixWhite($w, wixData, wixSite, wixStorage) {
-
+	let lang = 'En';
     const dbReady = pull();
     
     return $w.onReady(() => {
@@ -138,13 +138,18 @@ export function initWixWhite($w, wixData, wixSite, wixStorage) {
     }
 
     function startSync(initialData) {
-
-        initialData.items.forEach(updatePage);
+		
         $w('#cmsbutton').onClick(openCMS);
+		$w('#langEn').onClick(()=>lang = 'En');
+		$w('#langFr').onClick(()=>lang = 'Fr');
+		$w('#langEs').onClick(()=>lang = 'Es');
         
         pullDBChanges((data) => {
             data.items.forEach(updatePage);
         });
+        
+        initialData.items.forEach(updatePage);
+        
     }
 
 
@@ -156,16 +161,16 @@ export function initWixWhite($w, wixData, wixSite, wixStorage) {
         if (dataset.length !== 0) {
             dbItem = dataset.getCurrentItem();
         }
-
+        
         const page = getCurrentPage();
 
         wixSite.lightbox.open('cms', {
-            isDynamic: isDynamic,
+            isDynamic,
+            lang,
             itemId: dbItem && dbItem._id,
             page: pageToJSON(page),
             collection: 'cms',
             components: getAllComponents(page).map((comp) => comp.toJSON()).sort((a,b)=>{
-            	
             	if ( a.id< b.id)
 				  return -1;
 				if ( a.id > b.id )
@@ -174,7 +179,11 @@ export function initWixWhite($w, wixData, wixSite, wixStorage) {
             })
         }
         ).then(() => {
-            $w('#cmsbutton').onClick(openCMS);
+            $w('#cmsbutton').onClick(openCMS);    
+			$w('#langEn').onClick(()=>lang = 'En');
+			$w('#langFr').onClick(()=>lang = 'Fr');
+			$w('#langEs').onClick(()=>lang = 'Es');
+			
         });
     }
 
@@ -207,7 +216,7 @@ export function initWixWhite($w, wixData, wixSite, wixStorage) {
             dbItem = dataset.getCurrentItem();
         }
 
-        const isMatchPage = dbItem ? (('_' + dbItem._id) === page._id) : (page._id === $w('Page').title);
+        const isMatchPage = dbItem ? (('_' + dbItem._id + '_' + lang) === page._id) : (page._id === $w('Page').title + '_' + lang);
         if (isMatchPage) {
             const components = page.components;
 
