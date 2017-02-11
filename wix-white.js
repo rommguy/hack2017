@@ -70,7 +70,7 @@ export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
                 feildToComp.text.onChange(deferSave);
             },
             "$w.Image": () => {
-                feildToComp.label.text = relatedComp.id;
+                //feildToComp.label.text = relatedComp.id;
                 feildToComp.image.src = relatedComp.src;
                 feildToComp.imageuploader.buttonLabel = 'Upload Image';
                 feildToComp.imageuploader.onChange(() => {
@@ -84,12 +84,10 @@ export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
 
         handlers[key]();
 
-
-        console.log(feildToComp);
     }
 
     function saveToDB(relatedComp, page, key, value, itemId) {
-        console.log('saveToDB', relatedComp, page, key, value);
+        console.log('saveToDB', relatedComp.id, page && page.title, key, value);
         const cmsKey = itemId ? '_' + itemId : page.title;
         wixData.get('cms', cmsKey).then((data) => {
             if (data) {
@@ -115,6 +113,7 @@ export function initWixWhite($w, wixData, wixSite, wixStorage) {
     const dbReady = pull();
     
     return $w.onReady(() => {
+    	console.log('ready site');
         dbReady.then(startSync);
         setInterval(blink, 100);
     });
@@ -139,8 +138,10 @@ export function initWixWhite($w, wixData, wixSite, wixStorage) {
     }
 
     function startSync(initialData) {
+
         initialData.items.forEach(updatePage);
         $w('#cmsbutton').onClick(openCMS);
+        
         pullDBChanges((data) => {
             data.items.forEach(updatePage);
         });
@@ -155,6 +156,7 @@ export function initWixWhite($w, wixData, wixSite, wixStorage) {
         if (dataset.length !== 0) {
             dbItem = dataset.getCurrentItem();
         }
+
         const page = getCurrentPage();
 
         wixSite.lightbox.open('cms', {
@@ -162,7 +164,14 @@ export function initWixWhite($w, wixData, wixSite, wixStorage) {
             itemId: dbItem && dbItem._id,
             page: pageToJSON(page),
             collection: 'cms',
-            components: getAllComponents(page).map((comp) => comp.toJSON())
+            components: getAllComponents(page).map((comp) => comp.toJSON()).sort((a,b)=>{
+            	
+            	if ( a.id< b.id)
+				  return -1;
+				if ( a.id > b.id )
+				  return 1;
+				return 0;
+            })
         }
         ).then(() => {
             $w('#cmsbutton').onClick(openCMS);
@@ -198,7 +207,7 @@ export function initWixWhite($w, wixData, wixSite, wixStorage) {
             dbItem = dataset.getCurrentItem();
         }
 
-        const isMatchPage = dataset ? (('_' + dbItem._id) === page._id) : (page._id === $w('Page').title);
+        const isMatchPage = dbItem ? (('_' + dbItem._id) === page._id) : (page._id === $w('Page').title);
         if (isMatchPage) {
             const components = page.components;
 
