@@ -144,7 +144,7 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMod
     }
 
     function toggleCMSButtons(user){
-        if (user.role !== 'anonymous' || viewMode === 'preview'){
+        if (user.role !== 'anonymous' || viewMode === 'Preview'){
             showCMSButtons();
         } else {
             hideCMSButtons()
