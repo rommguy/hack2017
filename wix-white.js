@@ -379,7 +379,7 @@ function addDefaultTextAndSrc(pageItem) {
         compFieldKeys.forEach((fieldKey) => {
             newFields[fieldKey] = fieldKey === 'text' ? defaultText : defaultSrc;
         });
-        updatedComponents[compKey] = object.assign({}, compItem, {
+        updatedComponents[compKey] = Object.assign({}, compItem, {
             fields: newFields
         });
     });
