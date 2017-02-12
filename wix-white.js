@@ -198,7 +198,7 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWind
     function setLangBTNs(newLang) {
 
         lang = newLang;
-        console.log(lang)
+        
         $w('#langEn').label = lang === 'En' ? '(EN)' : 'EN';
         $w('#langFr').label = lang === 'Fr' ? '(KO)' : 'KO';
         $w('#langEs').label = lang === 'Es' ? '(ES)' : 'ES';
@@ -220,14 +220,14 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWind
 
     }
 
-    function startSync([initialData, initialExhibits]) {
+    function startSync([initialData, initialExhibits, initialArtists]) {
         bindMasterEvents();
 
-        pullDBChanges(([cms, exhibits]) => {
-        	updatePage(cms.items, exhibits);
+        pullDBChanges(([cms, exhibits, artists]) => {
+        	updatePage(cms.items, exhibits, artists);
         });
 		
-		updatePage(initialData.items, initialExhibits)
+		updatePage(initialData.items, initialExhibits, initialArtists)
         
         wixUsers.getCurrent().then(toggleCMSButtons);
     }
@@ -293,7 +293,7 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWind
     }
 
     function pull() {
-        return Promise.all([wixData.query('cms').find(), wixData.query('exhibits').find()]);
+        return Promise.all([wixData.query('cms').find(), wixData.query('exhibits').find(), wixData.query('artists').find()]);
     }
 
     function pullDBChanges(onData, interval = 500) {
@@ -305,7 +305,29 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWind
         }, interval);
     }
 
-    function updatePage(allPages, exhibits) {
+    function updateGL(glID, collection, allPages, lang, path){
+        if($w(glID).length !== 0){
+
+            var imagesForGl = collection.items.reduce((acc, item)=>{
+                allPages.forEach((page)=>{
+                    if(page._id === getCmsKey(item._id, null, lang)){
+                        for(var k in page.components){
+                            if(page.components[k].fields.src){
+                                acc.push({src: page.components[k].fields.src, title: item.title, link: '/' + path + '/' + item.title, width: 300, height: 300});
+                                return;
+                            }
+                        }        				
+                    }
+                });
+                return acc;
+            }, []);
+            
+            $w(glID).clickAction = 'link';
+            $w(glID).images = imagesForGl;
+        }
+    }
+
+    function updatePage(allPages, exhibits, artists) {
         const dataset = $w('#dynamicDataset');
         let dbItem;
         if (dataset.length !== 0) {
@@ -328,28 +350,32 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWind
                 relatedComp.src = item.fields.src;
             }
         }
-		    
-        if($w('#exhibits').length !== 0){
+        
+        updateGL('#exhibits', exhibits, allPages, lang, 'exhibits');
+        updateGL('#artists', artists, allPages, lang, 'artists');
 
-        	var imagesForGl = exhibits.items.reduce((acc, item)=>{
-        		allPages.forEach((page)=>{
-        			if(page._id === getCmsKey(item._id, null, lang)){
-        				for(var k in page.components){
-        					if(page.components[k].fields.src){
-        						acc.push({src: page.components[k].fields.src, title: item.title, link: '/exhibits/' + item.title, width: 300, height: 300});
-        						return;
-        					}
-        				}        				
-        			}
-        		});
-        		return acc;
-        	}, []);
+        // if($w('#exhibits').length !== 0){
+
+        // 	var imagesForGl = exhibits.items.reduce((acc, item)=>{
+        // 		allPages.forEach((page)=>{
+        // 			if(page._id === getCmsKey(item._id, null, lang)){
+        // 				for(var k in page.components){
+        // 					if(page.components[k].fields.src){
+        // 						acc.push({src: page.components[k].fields.src, title: item.title, link: '/exhibits/' + item.title, width: 300, height: 300});
+        // 						return;
+        // 					}
+        // 				}        				
+        // 			}
+        // 		});
+        // 		return acc;
+        // 	}, []);
         	
-        	$w('#exhibits').clickAction = 'link';
-        	$w('#exhibits').images = imagesForGl;
-        }
+        // 	$w('#exhibits').clickAction = 'link';
+        // 	$w('#exhibits').images = imagesForGl;
+        // }
     }
 }
+
 
 function getAllComponents(element, exclude = [], comps = []) {
     element.children && element.children.forEach((comp) => {
