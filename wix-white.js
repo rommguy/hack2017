@@ -113,33 +113,45 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMod
     const cmsButtonsContainerId = '#cmsbuttons';
     const loginButtonId = '#loginbutton';
     const cmsButtonId = '#cmsbutton';
+    const addPageId = '#addPage';
 
     const dbReady = pull();
 
     return $w.onReady(() => {
-    	console.log('ready site');
-        dbReady.then(startSync);
-        setInterval(blink, 100);
+        toggleAddPageButton().then(() => {
+            console.log('ready site');
+            dbReady.then(startSync);
+            setInterval(blink, 100);
+        });
     });
+
+    function toggleAddPageButton() {
+        const addPageButton = $w(addPageId);
+        const dataset = $w('#dynamicDataset');
+        return dataset.length !== 0 ? addPageButton.expand() : addPageButton.collapse()
+    }
 
     function loginOnClick(){
         wixUsers.login().then(toggleCMSButtons);
     }
 
     function showCMSButtons(interval = 300){
-        const buttons = $w(cmsButtonsContainerId);
-        buttons.expand()
-            .then(() => buttons.show())
-            .then(() => buttons.children.forEach((button, index, list) => {
+        const buttonContainer = $w(cmsButtonsContainerId);
+
+        buttonContainer
+            .expand()
+            .then(() => shouldShowAddButton ? true : addPageButton.expand())
+            .then(() => buttonContainer.show())
+            .then(() => buttonContainer.children.forEach((button, index, list) => {
                 setTimeout(() => button.show('FloatIn'), (list.length - index + 1) * interval);
             }));
     }
 
     function hideCMSButtons(){
-        const buttons = $w(cmsButtonsContainerId);
-        buttons.collapse().then(() => {
-            buttons.hide();
-            buttons.children.hide();
+        const buttonsContainer = $w(cmsButtonsContainerId);
+        buttonsContainer.collapse().then(() => {
+            buttonsContainer.hide();
+            buttonsContainer.children.hide();
         })
     }
 
