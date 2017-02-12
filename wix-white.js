@@ -176,16 +176,15 @@ export function initWixWhite($w, wixData, wixLocation, wixSite, wixStorage, wixU
 
     }
 
-    function startSync(initialData) {
+    function startSync([initialData, initialExhibits]) {
         bindMasterEvents();
 
-        initialData.items.forEach(updatePage);
-
-        pullDBChanges((data) => {
-            data.items.forEach(updatePage);
+        pullDBChanges(([cms, exhibits]) => {
+        	updatePage(cms.items, exhibits);
         });
-
-        initialData.items.forEach(updatePage);
+		
+		updatePage(initialData.items, initialExhibits)
+        
         wixUsers.getCurrent().then(toggleCMSButtons);
     }
 
@@ -218,8 +217,6 @@ export function initWixWhite($w, wixData, wixLocation, wixSite, wixStorage, wixU
         var sortedComps = comps.filter(({id}) => id.match(/^x.*x/) !== null).sort(sortFn)
             .concat(comps.filter(({id}) => id.match(/^x.*x/) === null).sort(sortFn));
 
-        console.log(sortedComps.map(({id}) => id));
-
         return sortedComps
 
         function sortFn(a, b) {
@@ -248,7 +245,7 @@ export function initWixWhite($w, wixData, wixLocation, wixSite, wixStorage, wixU
     }
 
     function pull() {
-        return wixData.query('cms').find();
+        return Promise.all([wixData.query('cms').find(), wixData.query('exhibits').find()]);
     }
 
     function pullDBChanges(onData, interval = 500) {
@@ -257,27 +254,48 @@ export function initWixWhite($w, wixData, wixLocation, wixSite, wixStorage, wixU
         }, interval);
     }
 
-    function updatePage(page) {
+    function updatePage(allPages, exhibits) {
         const dataset = $w('#dynamicDataset');
         let dbItem;
         if (dataset.length !== 0) {
             dbItem = dataset.getCurrentItem();
         }
+        
+        const page = allPages.filter((page)=>{
+        	return dbItem ? (('_' + dbItem._id + '_' + lang) === page._id) : (page._id === $w('Page').title + '_' + lang);
+        })[0];
+        
+        const components = page ? page.components : {};
 
-        const isMatchPage = dbItem ? (('_' + dbItem._id + '_' + lang) === page._id) : (page._id === $w('Page').title + '_' + lang);
-        if (isMatchPage) {
-            const components = page.components;
-
-            for (let k in components) {
-                let item = page.components[k];
-                let relatedComp = $w(`#${k}`);
-                if (relatedComp.type === '$w.Text') {
-                    relatedComp.text = item.fields.text;
-                }
-                if (relatedComp.type === '$w.Image') {
-                    relatedComp.src = item.fields.src;
-                }
+        for (let k in components) {
+            let item = page.components[k];
+            let relatedComp = $w(`#${k}`);
+            if (relatedComp.type === '$w.Text') {
+                relatedComp.text = item.fields.text;
             }
+            if (relatedComp.type === '$w.Image') {
+                relatedComp.src = item.fields.src;
+            }
+        }
+		    
+        if($w('#exhibits').length !== 0){
+
+        	var imagesForGl = exhibits.items.reduce((acc, item)=>{
+        		allPages.forEach((page)=>{
+        			if(page._id === getCmsKey(item._id, null, lang)){
+        				for(var k in page.components){
+        					if(page.components[k].fields.src){
+        						acc.push({src: page.components[k].fields.src, title: item.title, link: '/exhibits/' + item.title, width: 300, height: 300});
+        						return;
+        					}
+        				}        				
+        			}
+        		});
+        		return acc;
+        	}, []);
+        	
+        	$w('#exhibits').clickAction = 'link';
+        	$w('#exhibits').images = imagesForGl;
         }
     }
 
