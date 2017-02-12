@@ -1,6 +1,6 @@
 let pausePull = false;
 
-export function initWixWhiteAddPage($w, wixData, wixSite, wixLocation) {
+export function initWixWhiteAddPage($w, wixSite) {
     // artists, exhibits
 
     $w.onReady(() => {
@@ -9,43 +9,18 @@ export function initWixWhiteAddPage($w, wixData, wixSite, wixLocation) {
         $w('#addexhibits').onClick(() => addPage('exhibits', context.lang, 'exhibits'));
     });
 
-    function hidePreLoader(){
+    function hidePreLoader() {
         var pl = $w('#preloader');
         pl.hide && pl.hide();
     }
-    function showPreLoader(){
+
+    function showPreLoader() {
         var pl = $w('#preloader');
         pl.show && pl.show();
     }
 
     function addPage(collectionName, lang, path) {
-        return wixData.query(collectionName)
-            .find()
-            .then(results => {
-                const newItemIndex = results.totalCount + 1;
-                const someItem = results.items[0] || {_id: 'undefined'};
-                const newPageTitle = 'title-' + newItemIndex;
-
-                pausePull = true;
-                showPreLoader();
-
-                return wixData
-                    .insert(collectionName, {'title': newPageTitle}, {})
-                    .then((generatedItem) => {
-                        const cmsKey = getCmsKey(someItem._id, null, lang);
-                        return wixData.get('cms', cmsKey)
-                            .then((currentItem) => {
-                                var newItem = addDefaultTextAndSrc(currentItem);
-                                delete newItem._id;
-                                return savePageItemToDB(wixData, null, newItem, generatedItem._id, lang);
-                            });
-                    })
-                    .then(() => {
-                        pausePull = false;
-                        hidePreLoader();
-                        wixLocation.to('/'+ path + '/' + newPageTitle)
-                    });
-            })
+        return wixSite.lightbox.close({collectionName, lang, path})
 
     }
 }
@@ -145,7 +120,7 @@ export function initLayoutPopup($w, wixLocation, wixSite, wixWindow) {
     })
 }
 
-export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWindow) {
+export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWindow, wixLocation) {
     let lang = 'En';
 
     const cmsButtonsContainerId = '#cmsbuttons';
@@ -258,8 +233,41 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWind
         ).then(bindMasterEvents);
     }
 
-    function openAddPage(){
-        wixSite.lightbox.open('addPage', {lang});
+    function openAddPage() {
+        wixSite.lightbox.open('addPage', {lang})
+            .then(({collectionName, lang, path}) => {
+                if (!collectionName) {
+                    return;
+                }
+
+                return wixData.query(collectionName)
+                    .find()
+                    .then(results => {
+                        const newItemIndex = results.totalCount + 1;
+                        const someItem = results.items[0] || {_id: 'undefined'};
+                        const newPageTitle = 'title-' + newItemIndex;
+
+                        pausePull = true;
+                        //showPreLoader();
+
+                        return wixData
+                            .insert(collectionName, {'title': newPageTitle}, {})
+                            .then((generatedItem) => {
+                                const cmsKey = getCmsKey(someItem._id, null, lang);
+                                return wixData.get('cms', cmsKey)
+                                    .then((currentItem) => {
+                                        var newItem = addDefaultTextAndSrc(currentItem);
+                                        delete newItem._id;
+                                        return savePageItemToDB(wixData, null, newItem, generatedItem._id, lang);
+                                    });
+                            })
+                            .then(() => {
+                                pausePull = false;
+                                //hidePreLoader();
+                                wixLocation.to('/' + path + '/' + newPageTitle)
+                            });
+                    })
+            });
     }
 
     function openLayout() {
@@ -308,22 +316,28 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWind
 
     function pullDBChanges(onData, interval = 500) {
         return setInterval(() => {
-            if(pausePull){
+            if (pausePull) {
                 return
             }
             pull().then(onData);
         }, interval);
     }
 
-    function updateGL(glID, collection, allPages, lang, path){
-        if($w(glID).length !== 0){
+    function updateGL(glID, collection, allPages, lang, path) {
+        if ($w(glID).length !== 0) {
 
-            var imagesForGl = collection.items.reduce((acc, item)=>{
-                allPages.forEach((page)=>{
-                    if(page._id === getCmsKey(item._id, null, lang)){
-                        for(var k in page.components){
-                            if(page.components[k].fields.src){
-                                acc.push({src: page.components[k].fields.src, title: item.title, link: '/' + path + '/' + item.title, width: 300, height: 300});
+            var imagesForGl = collection.items.reduce((acc, item) => {
+                allPages.forEach((page) => {
+                    if (page._id === getCmsKey(item._id, null, lang)) {
+                        for (var k in page.components) {
+                            if (page.components[k].fields.src) {
+                                acc.push({
+                                    src: page.components[k].fields.src,
+                                    title: item.title,
+                                    link: '/' + path + '/' + item.title,
+                                    width: 300,
+                                    height: 300
+                                });
                                 return;
                             }
                         }
@@ -350,7 +364,7 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWind
             }
         }
 
-        const page = allPages.filter((page)=>{
+        const page = allPages.filter((page) => {
             return dbItem ? (('_' + dbItem._id + '_' + lang) === page._id) : (page._id === $w('Page').title + '_' + lang);
         })[0];
 
