@@ -86,7 +86,7 @@ export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
     }
 }
 
-export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMode) {
+export function initWixWhite($w, wixData, wixLocation, wixSite, wixStorage, wixUsers, viewMode) {
     let lang = 'En';
     const cmsButtonsContainerId = '#cmsbuttons';
     const loginButtonId = '#loginbutton';
@@ -151,25 +151,25 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMod
         }
     }
 
-    function setLangBTNs(newLang){
+    function setLangBTNs(newLang) {
 
-    	lang = newLang;
-    	console.log(lang)
-    	$w('#langEn').label = lang === 'En' ? '(EN)' : 'EN';
-    	$w('#langFr').label = lang === 'Fr' ? '(FR)' : 'FR';
-    	$w('#langEs').label = lang === 'Es' ? '(ES)' : 'ES';
+        lang = newLang;
+        console.log(lang)
+        $w('#langEn').label = lang === 'En' ? '(EN)' : 'EN';
+        $w('#langFr').label = lang === 'Fr' ? '(FR)' : 'FR';
+        $w('#langEs').label = lang === 'Es' ? '(ES)' : 'ES';
     }
 
 
-    function bindMasterEvents(){
-    	setLangBTNs(lang);
-    	$w('#langEn').onClick(()=>setLangBTNs('En'));
-        $w('#langFr').onClick(()=>setLangBTNs('Fr'));
-        $w('#langEs').onClick(()=>setLangBTNs('Es'));
-		
-		$w(openContactId).onClick(()=>{
+    function bindMasterEvents() {
+        setLangBTNs(lang);
+        $w('#langEn').onClick(() => setLangBTNs('En'));
+        $w('#langFr').onClick(() => setLangBTNs('Fr'));
+        $w('#langEs').onClick(() => setLangBTNs('Es'));
+
+        $w(openContactId).onClick(() => {
             wixSite.lightbox.open('contact', {}).then(bindMasterEvents);
-		});
+        });
         $w(cmsButtonId).onClick(openCMS);
         $w(addPageId).onClick(addPage);
         $w(loginButtonId).onClick(loginOnClick);
@@ -177,7 +177,7 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMod
     }
 
     function startSync(initialData) {
-       	bindMasterEvents();
+        bindMasterEvents();
 
         initialData.items.forEach(updatePage);
 
@@ -199,7 +199,7 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMod
         }
         const page = getCurrentPage();
 
-		wixSite.lightbox.open('cms', {
+        wixSite.lightbox.open('cms', {
                 isDynamic,
                 lang,
                 itemId: dbItem && dbItem._id,
@@ -210,30 +210,30 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMod
         ).then(bindMasterEvents);
     }
 
-	function sortComponents(page){
-		var comps = getAllComponents(page).map((comp) => comp.toJSON()).filter((comp)=>{
-        	return comp.id.match(/^xxx/) === null;
+    function sortComponents(page) {
+        var comps = getAllComponents(page).map((comp) => comp.toJSON()).filter((comp) => {
+            return comp.id.match(/^xxx/) === null;
         });
 
-        var sortedComps = comps.filter(({id})=>id.match(/^x.*x/) !== null).sort(sortFn)
-        	.concat(comps.filter(({id})=>id.match(/^x.*x/) === null).sort(sortFn));
+        var sortedComps = comps.filter(({id}) => id.match(/^x.*x/) !== null).sort(sortFn)
+            .concat(comps.filter(({id}) => id.match(/^x.*x/) === null).sort(sortFn));
 
-        console.log(sortedComps.map(({id})=>id));
+        console.log(sortedComps.map(({id}) => id));
 
         return sortedComps
 
-        function sortFn(a,b){
-        	var idA = a.id;
-        	var idB = b.id;
+        function sortFn(a, b) {
+            var idA = a.id;
+            var idB = b.id;
 
-            if ( idA < idB)
+            if (idA < idB)
                 return -1;
-            if ( idA > idB )
+            if (idA > idB)
                 return 1;
             return 0;
         }
 
-	}
+    }
 
     function getCurrentPage() {
         let comps = $w('Image');
@@ -292,15 +292,20 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMod
         const collectionName = dataset.id.substr(0, dataset.id.indexOf(collectionDelimiter));
         const dynamicDataset = $w('#dynamicDataset');
         const currentItem = dynamicDataset.getCurrentItem();
+        const newPageTitle = 'title-' + newItemIndex;
         wixData
-            .insert(collectionName, {'title': 'title-' + newItemIndex}, {})
+            .insert(collectionName, {'title': newPageTitle}, {})
             .then((generatedItem) => {
                 const cmsKey = getCmsKey(currentItem._id, null, lang);
-                wixData.get('cms', cmsKey).then((currentItem) => {
-                    var newItem = addDefaultTextAndSrc(currentItem);
-                    delete newItem._id;
-                    savePageItemToDB(wixData, null, newItem, generatedItem._id, lang);
-                });
+                return wixData.get('cms', cmsKey)
+                    .then((currentItem) => {
+                        var newItem = addDefaultTextAndSrc(currentItem);
+                        delete newItem._id;
+                        return savePageItemToDB(wixData, null, newItem, generatedItem._id, lang);
+                    });
+            })
+            .then(() => {
+                wixLocation.to('/artists3/' + newPageTitle)
             });
     }
 }
@@ -352,12 +357,12 @@ function saveToDB(wixData, relatedComp, page, key, value, itemId, lang = 'En') {
 
 function savePageItemToDB(wixData, page, newData, itemId, lang = 'En') {
     const cmsKey = getCmsKey(itemId, page, lang);
-    wixData.get('cms', cmsKey).then((data) => {
+    return wixData.get('cms', cmsKey).then((data) => {
         if (data) {
-            wixData.update('cms', newData);
+            return wixData.update('cms', newData);
         } else {
             newData._id = cmsKey;
-            wixData.insert('cms', newData);
+            return wixData.insert('cms', newData);
         }
     });
 }
