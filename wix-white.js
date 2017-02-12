@@ -118,17 +118,18 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMod
     const dbReady = pull();
 
     return $w.onReady(() => {
-        toggleAddPageButton().then(() => {
-            console.log('ready site');
-            dbReady.then(startSync);
-            setInterval(blink, 100);
-        });
+        console.log('ready site');
+        dbReady.then(startSync);
+        setInterval(blink, 100);
     });
 
     function toggleAddPageButton() {
         const addPageButton = $w(addPageId);
-        const dataset = $w('#dynamicDataset');
-        return dataset.length !== 0 ? addPageButton.expand() : addPageButton.collapse()
+        if (addPageButton.collapse) {
+            const dataset = $w('#dynamicDataset');
+            return dataset.length !== 0 ? addPageButton.expand() : addPageButton.collapse()
+        }
+        return Promise.resolve();
     }
 
     function loginOnClick(){
@@ -137,29 +138,15 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMod
 
     function showCMSButtons(interval = 300){
         const buttonContainer = $w(cmsButtonsContainerId);
-
-        buttonContainer
-            .expand()
-            .then(() => shouldShowAddButton ? true : addPageButton.expand())
-            .then(() => buttonContainer.show())
-            .then(() => buttonContainer.children.forEach((button, index, list) => {
-                setTimeout(() => button.show('FloatIn'), (list.length - index + 1) * interval);
-            }));
-    }
-
-    function hideCMSButtons(){
-        const buttonsContainer = $w(cmsButtonsContainerId);
-        buttonsContainer.collapse().then(() => {
-            buttonsContainer.hide();
-            buttonsContainer.children.hide();
+        buttonContainer.children.forEach((button, index, list) => {
+            setTimeout(() => button.show('FloatIn'), (list.length - index + 1) * interval);
         })
     }
 
     function toggleCMSButtons(user){
+        toggleAddPageButton();
         if (user.role !== 'anonymous' || viewMode === 'Preview'){
             showCMSButtons();
-        } else {
-            hideCMSButtons()
         }
     }
 
@@ -182,25 +169,23 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMod
     }
 
     function startSync(initialData) {
-		
+
         $w('#langEn').onClick(()=>lang = 'En');
-		$w('#langFr').onClick(()=>lang = 'Fr');
-		$w('#langEs').onClick(()=>lang = 'Es');
-        
+        $w('#langFr').onClick(()=>lang = 'Fr');
+        $w('#langEs').onClick(()=>lang = 'Es');
 
         $w(cmsButtonId).onClick(openCMS);
         $w(loginButtonId).onClick(loginOnClick);
 
-        wixUsers.getCurrent().then(toggleCMSButtons);
 
         initialData.items.forEach(updatePage);
 
         pullDBChanges((data) => {
             data.items.forEach(updatePage);
         });
-        
+
         initialData.items.forEach(updatePage);
-        
+        wixUsers.getCurrent().then(toggleCMSButtons);
     }
 
     function openCMS() {
@@ -211,28 +196,28 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMod
         if (dataset.length !== 0) {
             dbItem = dataset.getCurrentItem();
         }
-        
+
         const page = getCurrentPage();
 
         wixSite.lightbox.open('cms', {
-            isDynamic,
-            lang,
-            itemId: dbItem && dbItem._id,
-            page: pageToJSON(page),
-            collection: 'cms',
-            components: getAllComponents(page).map((comp) => comp.toJSON()).sort((a,b)=>{
-            	if ( a.id < b.id)
-				  return -1;
-				if ( a.id > b.id )
-				  return 1;
-				return 0;
-            })
-        }
+                isDynamic,
+                lang,
+                itemId: dbItem && dbItem._id,
+                page: pageToJSON(page),
+                collection: 'cms',
+                components: getAllComponents(page).map((comp) => comp.toJSON()).sort((a,b)=>{
+                    if ( a.id < b.id)
+                        return -1;
+                    if ( a.id > b.id )
+                        return 1;
+                    return 0;
+                })
+            }
         ).then(() => {
-			$w('#langEn').onClick(()=>lang = 'En');
-			$w('#langFr').onClick(()=>lang = 'Fr');
-			$w('#langEs').onClick(()=>lang = 'Es');
-			
+            $w('#langEn').onClick(()=>lang = 'En');
+            $w('#langFr').onClick(()=>lang = 'Fr');
+            $w('#langEs').onClick(()=>lang = 'Es');
+
             $w(cmsButtonId).onClick(openCMS);
             $w(loginButtonId).onClick(loginOnClick);
         });
