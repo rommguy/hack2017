@@ -59,7 +59,7 @@ export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
 
         var handlers = {
             "$w.Text": () => {
-                feildToComp.label.text = relatedComp.id;
+                feildToComp.label.text = relatedComp.id.replace(/^x\d+x/, '');
                 feildToComp.text.value = relatedComp.text;
                 function deferSave(e){
                     clearTimeout(deferSave.tmid);
@@ -114,6 +114,7 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMod
     const loginButtonId = '#loginbutton';
     const cmsButtonId = '#cmsbutton';
     const addPageId = '#addPage';
+    const openContactId = '#openContact';
     const collectionDelimiter = '111';
 
     const dbReady = pull();
@@ -168,16 +169,24 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMod
             flicker($w(`#${id}`));
         }
     }
-
-    function startSync(initialData) {
-        $w('#langEn').onClick(()=>lang = 'En');
+    
+    function bindMasterEvents(){
+    	
+    	$w('#langEn').onClick(()=>lang = 'En');
         $w('#langFr').onClick(()=>lang = 'Fr');
         $w('#langEs').onClick(()=>lang = 'Es');
-
+		
+		$w(openContactId).onClick(()=>{
+            wixSite.lightbox.open('contact', {}).then(bindMasterEvents);
+		});
         $w(cmsButtonId).onClick(openCMS);
         $w(addPageId).onClick(addPage);
         $w(loginButtonId).onClick(loginOnClick);
 
+    }
+
+    function startSync(initialData) {
+       	bindMasterEvents();
 
         initialData.items.forEach(updatePage);
 
@@ -197,32 +206,43 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMod
         if (dataset.length !== 0) {
             dbItem = dataset.getCurrentItem();
         }
-
         const page = getCurrentPage();
 
-        wixSite.lightbox.open('cms', {
+		wixSite.lightbox.open('cms', {
                 isDynamic,
                 lang,
                 itemId: dbItem && dbItem._id,
                 page: pageToJSON(page),
                 collection: 'cms',
-                components: getAllComponents(page).map((comp) => comp.toJSON()).sort((a,b)=>{
-                    if ( a.id < b.id)
-                        return -1;
-                    if ( a.id > b.id )
-                        return 1;
-                    return 0;
-                })
+                components: sortComponents(page)
             }
-        ).then(() => {
-            $w('#langEn').onClick(()=>lang = 'En');
-            $w('#langFr').onClick(()=>lang = 'Fr');
-            $w('#langEs').onClick(()=>lang = 'Es');
-
-            $w(cmsButtonId).onClick(openCMS);
-            $w(loginButtonId).onClick(loginOnClick);
-        });
+        ).then(bindMasterEvents);
     }
+
+	function sortComponents(page){
+		var comps = getAllComponents(page).map((comp) => comp.toJSON()).filter((comp)=>{
+        	return comp.id.match(/^xxx/) === null;
+        });
+        
+        var sortedComps = comps.filter(({id})=>id.match(/^x.*x/) !== null).sort(sortFn)
+        	.concat(comps.filter(({id})=>id.match(/^x.*x/) === null).sort(sortFn));
+        
+        console.log(sortedComps.map(({id})=>id));
+        
+        return sortedComps
+        
+        function sortFn(a,b){
+        	var idA = a.id;
+        	var idB = b.id;
+        	
+            if ( idA < idB)
+                return -1;
+            if ( idA > idB )
+                return 1;
+            return 0;
+        }
+        
+	}
 
     function getCurrentPage() {
         let comps = $w('Image');
@@ -305,5 +325,4 @@ function pageToJSON(page) {
     const {id, type, global, rendered, title, description, url, visibleInMenu} = page;
     return { id, type, global, rendered, title, description, url, visibleInMenu };
 }
-
 
