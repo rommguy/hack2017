@@ -170,11 +170,21 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMod
         }
     }
     
+    function setLangBTNs(newLang){
+		
+    	lang = newLang;
+    	console.log(lang)
+    	$w('#langEn').label = lang === 'En' ? '(EN)' : 'EN';
+    	$w('#langFr').label = lang === 'Fr' ? '(FR)' : 'FR';
+    	$w('#langEs').label = lang === 'Es' ? '(ES)' : 'ES';
+    }
+    
+    
     function bindMasterEvents(){
-    	
-    	$w('#langEn').onClick(()=>lang = 'En');
-        $w('#langFr').onClick(()=>lang = 'Fr');
-        $w('#langEs').onClick(()=>lang = 'Es');
+    	setLangBTNs(lang);
+    	$w('#langEn').onClick(()=>setLangBTNs('En'));
+        $w('#langFr').onClick(()=>setLangBTNs('Fr'));
+        $w('#langEs').onClick(()=>setLangBTNs('Es'));
 		
 		$w(openContactId).onClick(()=>{
             wixSite.lightbox.open('contact', {}).then(bindMasterEvents);
@@ -325,4 +335,3 @@ function pageToJSON(page) {
     const {id, type, global, rendered, title, description, url, visibleInMenu} = page;
     return { id, type, global, rendered, title, description, url, visibleInMenu };
 }
-
