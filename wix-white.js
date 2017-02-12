@@ -17,7 +17,7 @@ export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
             "$w.Image": []
         });
 
-        var allCollapse = textContainer.children.concat(imageContainer.children).map((comp) => {
+        var allCollapse = inputsByType["$w.Text"].concat(inputsByType["$w.Image"]).map((comp) => {
             return comp.collapse();
         });
 
