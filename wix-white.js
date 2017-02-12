@@ -305,7 +305,7 @@ export function initWixWhite($w, wixData, wixLocation, wixSite, wixStorage, wixU
                     });
             })
             .then(() => {
-                wixLocation.to('/artists3/' + newPageTitle)
+                wixLocation.to('/exhibits/' + newPageTitle)
             });
     }
 }
