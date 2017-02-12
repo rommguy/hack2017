@@ -1,4 +1,3 @@
-
 export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
 
     return $w.onReady(function () {
@@ -33,7 +32,7 @@ export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
 
     function bindEventsToForm(typeForm, relatedComp, page, key, index, itemId, lang) {
 
-        typeForm.onMouseIn(()=>{
+        typeForm.onMouseIn(() => {
             wixStorage.session.setItem('blink', relatedComp.id);
         });
 
@@ -61,12 +60,13 @@ export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
             "$w.Text": () => {
                 feildToComp.label.text = relatedComp.id.replace(/^x\d+x/, '');
                 feildToComp.text.value = relatedComp.text;
-                function deferSave(e){
+                function deferSave(e) {
                     clearTimeout(deferSave.tmid);
-                    deferSave.tmid = setTimeout(function(){
-                        saveToDB(relatedComp, page, 'text', e.target.value, itemId, lang)
+                    deferSave.tmid = setTimeout(function () {
+                        saveToDB(wixData, relatedComp, page, 'text', e.target.value, itemId, lang)
                     }, 300);
                 }
+
                 feildToComp.text.onChange(deferSave);
             },
             "$w.Image": () => {
@@ -76,35 +76,13 @@ export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
                 feildToComp.imageuploader.onChange(() => {
                     feildToComp.imageuploader.startUpload().then((uploadedFile) => {
                         feildToComp.image.src = uploadedFile.url;
-                        saveToDB(relatedComp, page, 'src', uploadedFile.url, itemId, lang);
+                        saveToDB(wixData, relatedComp, page, 'src', uploadedFile.url, itemId, lang);
                     });
                 });
             }
         }
 
         handlers[key]();
-
-    }
-
-    function saveToDB(relatedComp, page, key, value, itemId, lang = 'En') {
-        console.log('saveToDB', relatedComp.id, page && page.title, key, value, lang);
-        const cmsKey = (itemId ? '_' + itemId : page.title) + ('_' + lang);
-        wixData.get('cms', cmsKey).then((data) => {
-            if (data) {
-                if (data.components[relatedComp.id]) {
-                    data.components[relatedComp.id].fields[key] = value;
-                } else {
-                    data.components[relatedComp.id] = { _id: relatedComp.id, component: relatedComp, fields: { [key]: value } };
-                }
-                wixData.update('cms', data);
-            } else {
-                wixData.insert('cms', {
-                    _id: cmsKey, components: {
-                        [relatedComp.id]: { _id: relatedComp.id, component: relatedComp, fields: { [key]: value } }
-                    }
-                });
-            }
-        });
     }
 }
 
@@ -134,52 +112,55 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMod
         return Promise.resolve();
     }
 
-    function loginOnClick(){
+    function loginOnClick() {
         wixUsers.login().then(toggleCMSButtons);
     }
 
-    function showCMSButtons(interval = 300){
+    function showCMSButtons(interval = 300) {
         const buttonContainer = $w(cmsButtonsContainerId);
         buttonContainer.children.forEach((button, index, list) => {
             setTimeout(() => button.show('FloatIn'), (list.length - index + 1) * interval);
         })
     }
 
-    function toggleCMSButtons(user){
+    function toggleCMSButtons(user) {
         toggleAddPageButton();
-        if (user.role !== 'anonymous' || viewMode === 'Preview'){
+        if (user.role !== 'anonymous' || viewMode === 'Preview') {
             showCMSButtons();
         }
     }
 
-    function blink(){
+    function blink() {
         let id = wixStorage.session.getItem('blink');
-        if(id){
+        if (id) {
             wixStorage.session.removeItem('blink');
 
-            function flicker(comp, times = 2){
+            function flicker(comp, times = 2) {
                 comp.hide();
-                setTimeout(()=>{
+                setTimeout(() => {
                     comp.show();
-                    if(times > 1){
-                        setTimeout(()=>{flicker(comp, times-1)}, 100);
+                    if (times > 1) {
+                        setTimeout(() => {
+                            flicker(comp, times - 1)
+                        }, 100);
                     }
                 }, 100);
             }
+
             flicker($w(`#${id}`));
         }
     }
-    
+
     function setLangBTNs(newLang){
-		
+
     	lang = newLang;
     	console.log(lang)
     	$w('#langEn').label = lang === 'En' ? '(EN)' : 'EN';
     	$w('#langFr').label = lang === 'Fr' ? '(FR)' : 'FR';
     	$w('#langEs').label = lang === 'Es' ? '(ES)' : 'ES';
     }
-    
-    
+
+
     function bindMasterEvents(){
     	setLangBTNs(lang);
     	$w('#langEn').onClick(()=>setLangBTNs('En'));
@@ -233,25 +214,25 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMod
 		var comps = getAllComponents(page).map((comp) => comp.toJSON()).filter((comp)=>{
         	return comp.id.match(/^xxx/) === null;
         });
-        
+
         var sortedComps = comps.filter(({id})=>id.match(/^x.*x/) !== null).sort(sortFn)
         	.concat(comps.filter(({id})=>id.match(/^x.*x/) === null).sort(sortFn));
-        
+
         console.log(sortedComps.map(({id})=>id));
-        
+
         return sortedComps
-        
+
         function sortFn(a,b){
         	var idA = a.id;
         	var idB = b.id;
-        	
+
             if ( idA < idB)
                 return -1;
             if ( idA > idB )
                 return 1;
             return 0;
         }
-        
+
 	}
 
     function getCurrentPage() {
@@ -309,13 +290,26 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMod
         const dataset = page.children[datasetIndex];
         const newItemIndex = dataset.getTotalCount() + 1;
         const collectionName = dataset.id.substr(0, dataset.id.indexOf(collectionDelimiter));
-        wixData.insert(collectionName, {'title': 'title-' + newItemIndex}, {});
+        const dynamicDataset = $w('#dynamicDataset');
+        const currentItem = dynamicDataset.getCurrentItem();
+        wixData
+            .insert(collectionName, {'title': 'title-' + newItemIndex}, {})
+            .then((generatedItem) => {
+                const cmsKey = getCmsKey(currentItem._id, null, lang);
+                wixData.get('cms', cmsKey).then((currentItem) => {
+                    var newItem = addDefaultTextAndSrc(currentItem);
+                    delete newItem._id;
+                    savePageItemToDB(wixData, null, newItem, generatedItem._id, lang);
+                });
+            });
     }
 }
 
 function getAllComponents(element, exclude = [], comps = []) {
     element.children && element.children.forEach((comp) => {
-        if (exclude.indexOf(comp.id) !== -1) { return; }
+        if (exclude.indexOf(comp.id) !== -1) {
+            return;
+        }
         comps.push(comp);
         getAllComponents(comp, exclude, comps);
     });
@@ -333,5 +327,63 @@ function groupByType(comp, acc) {
 
 function pageToJSON(page) {
     const {id, type, global, rendered, title, description, url, visibleInMenu} = page;
-    return { id, type, global, rendered, title, description, url, visibleInMenu };
+    return {id, type, global, rendered, title, description, url, visibleInMenu};
+}
+
+function saveToDB(wixData, relatedComp, page, key, value, itemId, lang = 'En') {
+    const cmsKey = getCmsKey(itemId, page, lang);
+    wixData.get('cms', cmsKey).then((data) => {
+        if (data) {
+            if (data.components[relatedComp.id]) {
+                data.components[relatedComp.id].fields[key] = value;
+            } else {
+                data.components[relatedComp.id] = {_id: relatedComp.id, component: relatedComp, fields: {[key]: value}};
+            }
+            wixData.update('cms', data);
+        } else {
+            wixData.insert('cms', {
+                _id: cmsKey, components: {
+                    [relatedComp.id]: {_id: relatedComp.id, component: relatedComp, fields: {[key]: value}}
+                }
+            });
+        }
+    });
+}
+
+function savePageItemToDB(wixData, page, newData, itemId, lang = 'En') {
+    const cmsKey = getCmsKey(itemId, page, lang);
+    wixData.get('cms', cmsKey).then((data) => {
+        if (data) {
+            wixData.update('cms', newData);
+        } else {
+            newData._id = cmsKey;
+            wixData.insert('cms', newData);
+        }
+    });
+}
+
+function getCmsKey(itemId, pageComp, lang) {
+    return (itemId ? '_' + itemId : pageComp.title) + ('_' + lang);
+}
+
+function addDefaultTextAndSrc(pageItem) {
+    const defaultText = "I'm a text";
+    const defaultSrc = 'https://cdn.meme.am/cache/instances/folder852/67008852.jpg';
+
+    const componentIds = Object.keys(pageItem.components);
+    const updatedComponents = {};
+    componentIds.forEach((compKey) => {
+        const compItem = pageItem.components[compKey];
+        const compFieldKeys = Object.keys(compItem.fields);
+        let newFields = {};
+        compFieldKeys.forEach((fieldKey) => {
+            newFields[fieldKey] = fieldKey === 'text' ? defaultText : defaultSrc;
+        });
+        updatedComponents[compKey] = object.assign({}, compItem, {
+            fields: newFields
+        });
+    });
+    return Object.assign({}, pageItem, {
+        components: updatedComponents
+    });
 }
