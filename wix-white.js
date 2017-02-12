@@ -230,10 +230,10 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWind
         bindMasterEvents();
 
         pullDBChanges(([cms, exhibits, artists]) => {
-        	updatePage(cms.items, exhibits, artists);
+            updatePage(cms.items, exhibits, artists);
         });
 
-		updatePage(initialData.items, initialExhibits, initialArtists)
+        updatePage(initialData.items, initialExhibits, initialArtists)
 
         wixUsers.getCurrent().then(toggleCMSButtons);
     }
@@ -308,9 +308,9 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWind
 
     function pullDBChanges(onData, interval = 500) {
         return setInterval(() => {
-        	if(pausePull){
-        		return
-        	}
+            if(pausePull){
+                return
+            }
             pull().then(onData);
         }, interval);
     }
@@ -345,10 +345,13 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWind
             dbItem = dynamicDataset.getCurrentItem();
         } else if (customDataset.length !== 0 && self.routerData) {
             dbItem = self.routerData;
+            if (!dbItem) {
+                return;
+            }
         }
 
         const page = allPages.filter((page)=>{
-        	return dbItem ? (('_' + dbItem._id + '_' + lang) === page._id) : (page._id === $w('Page').title + '_' + lang);
+            return dbItem ? (('_' + dbItem._id + '_' + lang) === page._id) : (page._id === $w('Page').title + '_' + lang);
         })[0];
 
         const components = page ? page.components : {};
