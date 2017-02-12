@@ -8,8 +8,8 @@ export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
         const imageContainer = $w('#imageFields');
 
         var inputsByType = {
-            "$w.Text": textContainer.children,
-            "$w.Image": imageContainer.children
+            "$w.Text": textContainer.children || [],
+            "$w.Image": imageContainer.children || []
         }
 
         var groups = groupByType(context.components, {
