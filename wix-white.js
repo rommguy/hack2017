@@ -114,6 +114,7 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMod
     const loginButtonId = '#loginbutton';
     const cmsButtonId = '#cmsbutton';
     const addPageId = '#addPage';
+    const collectionDelimiter = '111';
 
     const dbReady = pull();
 
@@ -169,12 +170,12 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMod
     }
 
     function startSync(initialData) {
-
         $w('#langEn').onClick(()=>lang = 'En');
         $w('#langFr').onClick(()=>lang = 'Fr');
         $w('#langEs').onClick(()=>lang = 'Es');
 
         $w(cmsButtonId).onClick(openCMS);
+        $w(addPageId).onClick(addPage);
         $w(loginButtonId).onClick(loginOnClick);
 
 
@@ -269,8 +270,18 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMod
         }
     }
 
+    function addPage() {
+        const page = getCurrentPage();
+        const datasetIndex = page.children.findIndex((child) => child.type === 'dataset');
+        if (datasetIndex === -1) {
+            return;
+        }
+        const dataset = page.children[datasetIndex];
+        const newItemIndex = dataset.getTotalCount() + 1;
+        const collectionName = dataset.id.substr(0, dataset.id.indexOf(collectionDelimiter));
+        wixData.insert(collectionName, {'title': 'title-' + newItemIndex}, {});
+    }
 }
-
 
 function getAllComponents(element, exclude = [], comps = []) {
     element.children && element.children.forEach((comp) => {
@@ -294,3 +305,5 @@ function pageToJSON(page) {
     const {id, type, global, rendered, title, description, url, visibleInMenu} = page;
     return { id, type, global, rendered, title, description, url, visibleInMenu };
 }
+
+
