@@ -108,16 +108,48 @@ export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
     }
 }
 
-export function initWixWhite($w, wixData, wixSite, wixStorage) {
-	let lang = 'En';
+export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMode) {
+    let lang = 'En';
+    const cmsButtonsContainerId = '#cmsbuttons';
+    const loginButtonId = '#loginbutton';
+    const cmsButtonId = '#cmsbutton';
+
     const dbReady = pull();
-    
+
     return $w.onReady(() => {
     	console.log('ready site');
         dbReady.then(startSync);
         setInterval(blink, 100);
     });
 
+    function loginOnClick(){
+        wixUsers.login().then(toggleCMSButtons);
+    }
+
+    function showCMSButtons(interval = 300){
+        const buttons = $w(cmsButtonsContainerId);
+        buttons.expand()
+            .then(() => buttons.show())
+            .then(() => buttons.children.forEach((button, index, list) => {
+                setTimeout(() => button.show('FloatIn'), (list.length - index + 1) * interval);
+            }));
+    }
+
+    function hideCMSButtons(){
+        const buttons = $w(cmsButtonsContainerId);
+        buttons.collapse().then(() => {
+            buttons.hide();
+            buttons.children.hide();
+        })
+    }
+
+    function toggleCMSButtons(user){
+        if (user.role !== 'anonymous' || viewMode === 'Preview'){
+            showCMSButtons();
+        } else {
+            hideCMSButtons()
+        }
+    }
 
     function blink(){
         let id = wixStorage.session.getItem('blink');
@@ -139,11 +171,18 @@ export function initWixWhite($w, wixData, wixSite, wixStorage) {
 
     function startSync(initialData) {
 		
-        $w('#cmsbutton').onClick(openCMS);
-		$w('#langEn').onClick(()=>lang = 'En');
+        $w('#langEn').onClick(()=>lang = 'En');
 		$w('#langFr').onClick(()=>lang = 'Fr');
 		$w('#langEs').onClick(()=>lang = 'Es');
         
+
+        $w(cmsButtonId).onClick(openCMS);
+        $w(loginButtonId).onClick(loginOnClick);
+
+        wixUsers.getCurrent().then(toggleCMSButtons);
+
+        initialData.items.forEach(updatePage);
+
         pullDBChanges((data) => {
             data.items.forEach(updatePage);
         });
@@ -151,7 +190,6 @@ export function initWixWhite($w, wixData, wixSite, wixStorage) {
         initialData.items.forEach(updatePage);
         
     }
-
 
     function openCMS() {
         console.log('openCMS');
@@ -171,7 +209,7 @@ export function initWixWhite($w, wixData, wixSite, wixStorage) {
             page: pageToJSON(page),
             collection: 'cms',
             components: getAllComponents(page).map((comp) => comp.toJSON()).sort((a,b)=>{
-            	if ( a.id< b.id)
+            	if ( a.id < b.id)
 				  return -1;
 				if ( a.id > b.id )
 				  return 1;
@@ -179,11 +217,12 @@ export function initWixWhite($w, wixData, wixSite, wixStorage) {
             })
         }
         ).then(() => {
-            $w('#cmsbutton').onClick(openCMS);    
 			$w('#langEn').onClick(()=>lang = 'En');
 			$w('#langFr').onClick(()=>lang = 'Fr');
 			$w('#langEs').onClick(()=>lang = 'Es');
 			
+            $w(cmsButtonId).onClick(openCMS);
+            $w(loginButtonId).onClick(loginOnClick);
         });
     }
 
