@@ -108,7 +108,7 @@ export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
     }
 }
 
-export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers) {
+export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMode) {
 
     const cmsButtonsContainerId = '#cmsbuttons';
     const loginButtonId = '#loginbutton';
@@ -144,7 +144,7 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers) {
     }
 
     function toggleCMSButtons(user){
-        if (user.role !== 'anonymous'){
+        if (user.role !== 'anonymous' || viewMode === 'preview'){
             showCMSButtons();
         } else {
             hideCMSButtons()
