@@ -1,5 +1,56 @@
 let pausePull = false;
     
+export function initWixWhiteAddPage($w, wixData, wixSite, wixLocation) {
+
+    // artists, exhibits
+
+    $w.onReady(() => {
+        const context = wixSite.lightbox.getContext();
+        $w('#addartists').onClick(() => addPage('artists', context.lang));
+        $w('#addexhibits').onClick(() => addPage('exhibits', context.lang));
+    });
+
+    function hidePreLoader(){
+        var pl = $w('#preloader');
+        pl.hide && pl.hide();
+    }
+    function showPreLoader(){
+        var pl = $w('#preloader');
+        pl.show && pl.show();
+    }
+
+    function addPage(collectionName, lang) {
+        return wixData.query(collectionName)
+            .find()
+            .then(results => {
+                const newItemIndex = results.totalCount + 1;
+                const someItem = results.items[0] || {_id: 'undefined'};
+                const newPageTitle = 'title-' + newItemIndex;
+
+                pausePull = true;
+                showPreLoader();
+
+                return wixData
+                    .insert(collectionName, {'title': newPageTitle}, {})
+                    .then((generatedItem) => {
+                        const cmsKey = getCmsKey(someItem._id, null, lang);
+                        return wixData.get('cms', cmsKey)
+                            .then((currentItem) => {
+                                var newItem = addDefaultTextAndSrc(currentItem);
+                                delete newItem._id;
+                                return savePageItemToDB(wixData, null, newItem, generatedItem._id, lang);
+                            });
+                    })
+                    .then(() => {
+                        pausePull = false;
+                        hidePreLoader();
+                        wixLocation.to('/exhibits/' + newPageTitle)
+                    });
+            })
+
+    }
+}
+
 export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
 
     return $w.onReady(function () {
@@ -76,9 +127,10 @@ export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
                 feildToComp.image.src = relatedComp.src;
                 feildToComp.imageuploader.buttonLabel = 'Upload Image';
                 feildToComp.imageuploader.onChange(() => {
+                    pausePull = true;
                     feildToComp.imageuploader.startUpload().then((uploadedFile) => {
                         feildToComp.image.src = uploadedFile.url;
-                        saveToDB(wixData, relatedComp, page, 'src', uploadedFile.url, itemId, lang);
+                        saveToDB(wixData, relatedComp, page, 'src', uploadedFile.url, itemId, lang).then(() => pausePull = false);
                     });
                 });
             }
@@ -88,7 +140,7 @@ export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
     }
 }
 
-export function initWixWhite($w, wixData, wixLocation, wixSite, wixStorage, wixUsers, viewMode) {
+export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWindow) {
     let lang = 'En';
 
     const cmsButtonsContainerId = '#cmsbuttons';
@@ -96,7 +148,6 @@ export function initWixWhite($w, wixData, wixLocation, wixSite, wixStorage, wixU
     const cmsButtonId = '#cmsbutton';
     const addPageId = '#addPage';
     const openContactId = '#openContact';
-    const collectionDelimiter = '111';
 
     const dbReady = pull();
 
@@ -106,15 +157,6 @@ export function initWixWhite($w, wixData, wixLocation, wixSite, wixStorage, wixU
         setInterval(blink, 100);
     });
 
-    function toggleAddPageButton() {
-        const addPageButton = $w(addPageId);
-        if (addPageButton.collapse) {
-            const dataset = $w('#dynamicDataset');
-            return dataset.length !== 0 ? addPageButton.expand() : addPageButton.collapse()
-        }
-        return Promise.resolve();
-    }
-
     function loginOnClick() {
         wixUsers.login().then(toggleCMSButtons);
     }
@@ -122,13 +164,12 @@ export function initWixWhite($w, wixData, wixLocation, wixSite, wixStorage, wixU
     function showCMSButtons(interval = 300) {
         const buttonContainer = $w(cmsButtonsContainerId);
         buttonContainer.children.forEach((button, index, list) => {
-            setTimeout(() => button.show('FloatIn'), (list.length - index + 1) * interval);
+            setTimeout(() => button.show('FloatIn'), wixWindow.formFactor === 'Mobile' ? 0 : (list.length - index + 1) * interval);
         })
     }
 
     function toggleCMSButtons(user) {
-        toggleAddPageButton();
-        if (user.role !== 'anonymous' || viewMode === 'Preview') {
+        if (user.role !== 'anonymous' || wixWindow.viewMode === 'Preview') {
             showCMSButtons();
         }
     }
@@ -174,7 +215,7 @@ export function initWixWhite($w, wixData, wixLocation, wixSite, wixStorage, wixU
             wixSite.lightbox.open('contact', {}).then(bindMasterEvents);
         });
         $w(cmsButtonId).onClick(openCMS);
-        $w(addPageId).onClick(addPage);
+        $w(addPageId).onClick(openAddPage);
         $w(loginButtonId).onClick(loginOnClick);
 
     }
@@ -210,6 +251,10 @@ export function initWixWhite($w, wixData, wixLocation, wixSite, wixStorage, wixU
                 components: sortComponents(page)
             }
         ).then(bindMasterEvents);
+    }
+
+    function openAddPage(){
+        wixSite.lightbox.open('addPage', {lang});
     }
 
     function sortComponents(page) {
@@ -304,49 +349,6 @@ export function initWixWhite($w, wixData, wixLocation, wixSite, wixStorage, wixU
         	$w('#exhibits').images = imagesForGl;
         }
     }
-    
-    function hidePreLoader(){
-    	var pl = $w('#preloader');
-    	pl.hide && pl.hide();
-    }
-    function showPreLoader(){
-    	var pl = $w('#preloader');
-    	pl.show && pl.show();
-    }
-
-    function addPage() {
-        const page = getCurrentPage();
-        const datasetIndex = page.children.findIndex((child) => child.type === 'dataset');
-        if (datasetIndex === -1) {
-            return;
-        }
-        const dataset = page.children[datasetIndex];
-        const newItemIndex = dataset.getTotalCount() + 1;
-        const collectionName = dataset.id.substr(0, dataset.id.indexOf(collectionDelimiter));
-        const dynamicDataset = $w('#dynamicDataset');
-        const currentItem = dynamicDataset.getCurrentItem();
-        const newPageTitle = 'title-' + newItemIndex;
-        
-        pausePull = true;
-        showPreLoader();
-        
-        wixData
-            .insert(collectionName, {'title': newPageTitle}, {})
-            .then((generatedItem) => {
-                const cmsKey = getCmsKey(currentItem._id, null, lang);
-                return wixData.get('cms', cmsKey)
-                    .then((currentItem) => {
-                        var newItem = addDefaultTextAndSrc(currentItem);
-                        delete newItem._id;
-                        return savePageItemToDB(wixData, null, newItem, generatedItem._id, lang);
-                    });
-            })
-            .then(() => {
-            	pausePull = false;
-            	hidePreLoader();
-                wixLocation.to('/exhibits/' + newPageTitle)
-            });
-    }
 }
 
 function getAllComponents(element, exclude = [], comps = []) {
@@ -376,16 +378,16 @@ function pageToJSON(page) {
 
 function saveToDB(wixData, relatedComp, page, key, value, itemId, lang = 'En') {
     const cmsKey = getCmsKey(itemId, page, lang);
-    wixData.get('cms', cmsKey).then((data) => {
+    return wixData.get('cms', cmsKey).then((data) => {
         if (data) {
             if (data.components[relatedComp.id]) {
                 data.components[relatedComp.id].fields[key] = value;
             } else {
                 data.components[relatedComp.id] = {_id: relatedComp.id, component: relatedComp, fields: {[key]: value}};
             }
-            wixData.update('cms', data);
+            return wixData.update('cms', data);
         } else {
-            wixData.insert('cms', {
+            return wixData.insert('cms', {
                 _id: cmsKey, components: {
                     [relatedComp.id]: {_id: relatedComp.id, component: relatedComp, fields: {[key]: value}}
                 }
