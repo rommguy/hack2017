@@ -8,8 +8,8 @@ export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
         const imageContainer = $w('#imageFields');
 
         var inputsByType = {
-            "$w.Text": textContainer.children,
-            "$w.Image": imageContainer.children
+            "$w.Text": textContainer.children || [],
+            "$w.Image": imageContainer.children || []
         }
 
         var groups = groupByType(context.components, {
@@ -25,13 +25,13 @@ export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
             groups[key].forEach((comp, index) => {
                 if (inputsByType[key][index]) {
                     inputsByType[key][index].expand();
-                    bindEventsToForm(inputsByType[key][index], comp, context.page, key, index, context.itemId);
+                    bindEventsToForm(inputsByType[key][index], comp, context.page, key, index, context.itemId, context.lang);
                 }
             });
         });
     });
 
-    function bindEventsToForm(typeForm, relatedComp, page, key, index, itemId) {
+    function bindEventsToForm(typeForm, relatedComp, page, key, index, itemId, lang) {
 
         typeForm.onMouseIn(()=>{
             wixStorage.session.setItem('blink', relatedComp.id);
@@ -64,7 +64,7 @@ export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
                 function deferSave(e){
                     clearTimeout(deferSave.tmid);
                     deferSave.tmid = setTimeout(function(){
-                        saveToDB(relatedComp, page, 'text', e.target.value, itemId)
+                        saveToDB(relatedComp, page, 'text', e.target.value, itemId, lang)
                     }, 300);
                 }
                 feildToComp.text.onChange(deferSave);
@@ -76,7 +76,7 @@ export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
                 feildToComp.imageuploader.onChange(() => {
                     feildToComp.imageuploader.startUpload().then((uploadedFile) => {
                         feildToComp.image.src = uploadedFile.url;
-                        saveToDB(relatedComp, page, 'src', uploadedFile.url, itemId);
+                        saveToDB(relatedComp, page, 'src', uploadedFile.url, itemId, lang);
                     });
                 });
             }
@@ -86,9 +86,9 @@ export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
 
     }
 
-    function saveToDB(relatedComp, page, key, value, itemId) {
-        console.log('saveToDB', relatedComp.id, page && page.title, key, value);
-        const cmsKey = itemId ? '_' + itemId : page.title;
+    function saveToDB(relatedComp, page, key, value, itemId, lang = 'En') {
+        console.log('saveToDB', relatedComp.id, page && page.title, key, value, lang);
+        const cmsKey = (itemId ? '_' + itemId : page.title) + ('_' + lang);
         wixData.get('cms', cmsKey).then((data) => {
             if (data) {
                 if (data.components[relatedComp.id]) {
@@ -109,7 +109,7 @@ export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
 }
 
 export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMode) {
-
+    let lang = 'En';
     const cmsButtonsContainerId = '#cmsbuttons';
     const loginButtonId = '#loginbutton';
     const cmsButtonId = '#cmsbutton';
@@ -170,16 +170,25 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMod
     }
 
     function startSync(initialData) {
+		
+        $w('#langEn').onClick(()=>lang = 'En');
+		$w('#langFr').onClick(()=>lang = 'Fr');
+		$w('#langEs').onClick(()=>lang = 'Es');
+        
 
-        initialData.items.forEach(updatePage);
         $w(cmsButtonId).onClick(openCMS);
         $w(loginButtonId).onClick(loginOnClick);
 
         wixUsers.getCurrent().then(toggleCMSButtons);
 
+        initialData.items.forEach(updatePage);
+
         pullDBChanges((data) => {
             data.items.forEach(updatePage);
         });
+        
+        initialData.items.forEach(updatePage);
+        
     }
 
     function openCMS() {
@@ -190,11 +199,12 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMod
         if (dataset.length !== 0) {
             dbItem = dataset.getCurrentItem();
         }
-
+        
         const page = getCurrentPage();
 
         wixSite.lightbox.open('cms', {
-            isDynamic: isDynamic,
+            isDynamic,
+            lang,
             itemId: dbItem && dbItem._id,
             page: pageToJSON(page),
             collection: 'cms',
@@ -207,6 +217,10 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMod
             })
         }
         ).then(() => {
+			$w('#langEn').onClick(()=>lang = 'En');
+			$w('#langFr').onClick(()=>lang = 'Fr');
+			$w('#langEs').onClick(()=>lang = 'Es');
+			
             $w(cmsButtonId).onClick(openCMS);
             $w(loginButtonId).onClick(loginOnClick);
         });
@@ -241,7 +255,7 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, viewMod
             dbItem = dataset.getCurrentItem();
         }
 
-        const isMatchPage = dbItem ? (('_' + dbItem._id) === page._id) : (page._id === $w('Page').title);
+        const isMatchPage = dbItem ? (('_' + dbItem._id + '_' + lang) === page._id) : (page._id === $w('Page').title + '_' + lang);
         if (isMatchPage) {
             const components = page.components;
 
