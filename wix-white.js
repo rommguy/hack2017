@@ -1,5 +1,5 @@
 let pausePull = false;
-    
+
 export function initWixWhiteAddPage($w, wixData, wixSite, wixLocation) {
 
     // artists, exhibits
@@ -140,6 +140,12 @@ export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
     }
 }
 
+export function initLayoutPopup($w, wixLocation, wixSite, wixWindow) {
+    $w('Image').onClick(() => {
+        wixSite.lightbox.close({updatedLayoutUrl: (wixWindow.viewMode === 'Preview' ? '' : wixLocation.baseUrl) + '/exhibits/first'})
+    })
+}
+
 export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWindow) {
     let lang = 'En';
 
@@ -147,6 +153,7 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWind
     const loginButtonId = '#loginbutton';
     const cmsButtonId = '#cmsbutton';
     const addPageId = '#addPage';
+    const layoutButtonId = '#openLayout';
     const openContactId = '#openContact';
 
     const dbReady = pull();
@@ -198,7 +205,7 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWind
     function setLangBTNs(newLang) {
 
         lang = newLang;
-        
+
         $w('#langEn').label = lang === 'En' ? '(EN)' : 'EN';
         $w('#langFr').label = lang === 'Fr' ? '(KO)' : 'KO';
         $w('#langEs').label = lang === 'Es' ? '(ES)' : 'ES';
@@ -215,9 +222,9 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWind
             wixSite.lightbox.open('contact', {}).then(bindMasterEvents);
         });
         $w(cmsButtonId).onClick(openCMS);
+        $w(layoutButtonId).onClick(openLayout);
         $w(addPageId).onClick(openAddPage);
         $w(loginButtonId).onClick(loginOnClick);
-
     }
 
     function startSync([initialData, initialExhibits, initialArtists]) {
@@ -226,14 +233,13 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWind
         pullDBChanges(([cms, exhibits, artists]) => {
         	updatePage(cms.items, exhibits, artists);
         });
-		
+
 		updatePage(initialData.items, initialExhibits, initialArtists)
-        
+
         wixUsers.getCurrent().then(toggleCMSButtons);
     }
 
     function openCMS() {
-        console.log('openCMS');
         const dataset = $w('#dynamicDataset');
         const isDynamic = !!dataset;
         let dbItem;
@@ -255,6 +261,11 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWind
 
     function openAddPage(){
         wixSite.lightbox.open('addPage', {lang});
+    }
+
+    function openLayout() {
+        wixSite.lightbox.open('layout')
+            .then(({updatedLayoutUrl}) => wixLocation.to(updatedLayoutUrl));
     }
 
     function sortComponents(page) {
@@ -316,28 +327,31 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWind
                                 acc.push({src: page.components[k].fields.src, title: item.title, link: '/' + path + '/' + item.title, width: 300, height: 300});
                                 return;
                             }
-                        }        				
+                        }
                     }
                 });
                 return acc;
             }, []);
-            
+
             $w(glID).clickAction = 'link';
             $w(glID).images = imagesForGl;
         }
     }
 
     function updatePage(allPages, exhibits, artists) {
-        const dataset = $w('#dynamicDataset');
+        const dynamicDataset = $w('#dynamicDataset');
+        const customDataset = $w('#templateDataset')
         let dbItem;
-        if (dataset.length !== 0) {
-            dbItem = dataset.getCurrentItem();
+        if (dynamicDataset.length !== 0) {
+            dbItem = dynamicDataset.getCurrentItem();
+        } else if (customDataset.length !== 0 && self.routerData) {
+            dbItem = self.routerData;
         }
-        
+
         const page = allPages.filter((page)=>{
         	return dbItem ? (('_' + dbItem._id + '_' + lang) === page._id) : (page._id === $w('Page').title + '_' + lang);
         })[0];
-        
+
         const components = page ? page.components : {};
 
         for (let k in components) {
@@ -350,29 +364,9 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWind
                 relatedComp.src = item.fields.src;
             }
         }
-        
+
         updateGL('#exhibits', exhibits, allPages, lang, 'exhibits');
         updateGL('#artists', artists, allPages, lang, 'artists');
-
-        // if($w('#exhibits').length !== 0){
-
-        // 	var imagesForGl = exhibits.items.reduce((acc, item)=>{
-        // 		allPages.forEach((page)=>{
-        // 			if(page._id === getCmsKey(item._id, null, lang)){
-        // 				for(var k in page.components){
-        // 					if(page.components[k].fields.src){
-        // 						acc.push({src: page.components[k].fields.src, title: item.title, link: '/exhibits/' + item.title, width: 300, height: 300});
-        // 						return;
-        // 					}
-        // 				}        				
-        // 			}
-        // 		});
-        // 		return acc;
-        // 	}, []);
-        	
-        // 	$w('#exhibits').clickAction = 'link';
-        // 	$w('#exhibits').images = imagesForGl;
-        // }
     }
 }
 
