@@ -1,3 +1,5 @@
+let pausePull = false;
+    
 export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
 
     return $w.onReady(function () {
@@ -88,6 +90,7 @@ export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
 
 export function initWixWhite($w, wixData, wixLocation, wixSite, wixStorage, wixUsers, viewMode) {
     let lang = 'En';
+
     const cmsButtonsContainerId = '#cmsbuttons';
     const loginButtonId = '#loginbutton';
     const cmsButtonId = '#cmsbutton';
@@ -156,7 +159,7 @@ export function initWixWhite($w, wixData, wixLocation, wixSite, wixStorage, wixU
         lang = newLang;
         console.log(lang)
         $w('#langEn').label = lang === 'En' ? '(EN)' : 'EN';
-        $w('#langFr').label = lang === 'Fr' ? '(FR)' : 'FR';
+        $w('#langFr').label = lang === 'Fr' ? '(KO)' : 'KO';
         $w('#langEs').label = lang === 'Es' ? '(ES)' : 'ES';
     }
 
@@ -250,6 +253,9 @@ export function initWixWhite($w, wixData, wixLocation, wixSite, wixStorage, wixU
 
     function pullDBChanges(onData, interval = 500) {
         return setInterval(() => {
+        	if(pausePull){
+        		return
+        	}
             pull().then(onData);
         }, interval);
     }
@@ -298,6 +304,15 @@ export function initWixWhite($w, wixData, wixLocation, wixSite, wixStorage, wixU
         	$w('#exhibits').images = imagesForGl;
         }
     }
+    
+    function hidePreLoader(){
+    	var pl = $w('#preloader');
+    	pl.hide && pl.hide();
+    }
+    function showPreLoader(){
+    	var pl = $w('#preloader');
+    	pl.show && pl.show();
+    }
 
     function addPage() {
         const page = getCurrentPage();
@@ -311,6 +326,10 @@ export function initWixWhite($w, wixData, wixLocation, wixSite, wixStorage, wixU
         const dynamicDataset = $w('#dynamicDataset');
         const currentItem = dynamicDataset.getCurrentItem();
         const newPageTitle = 'title-' + newItemIndex;
+        
+        pausePull = true;
+        showPreLoader();
+        
         wixData
             .insert(collectionName, {'title': newPageTitle}, {})
             .then((generatedItem) => {
@@ -323,6 +342,8 @@ export function initWixWhite($w, wixData, wixLocation, wixSite, wixStorage, wixU
                     });
             })
             .then(() => {
+            	pausePull = false;
+            	hidePreLoader();
                 wixLocation.to('/exhibits/' + newPageTitle)
             });
     }
