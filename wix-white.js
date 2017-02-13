@@ -225,6 +225,8 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWind
         $w(layoutButtonId).onClick(openLayout);
         $w(addPageId).onClick(openAddPage);
         $w(loginButtonId).onClick(loginOnClick);
+
+        $w('#cleardbs').onClick(clearDBs);
     }
 
     function startSync([initialData, initialExhibits, initialArtists]) {
@@ -347,6 +349,21 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWind
             }
             pull().then(onData);
         }, interval);
+    }
+
+    function clearDBs(){
+        if (wixWindow.viewMode === 'Preview') {
+            console.warn(`Don't delete the editor DB!!! Aborting.`);
+            return;
+        }
+
+        ['cms', 'artists', 'exhibits'].forEach(collectionName => {
+            wixData.query(collectionName)
+                .find()
+                .then(results => {
+                    results.items.forEach(item => wixData.remove(collectionName, item._id));
+                });
+        });
     }
 
     function updateGL(glID, collection, allPages, lang, path) {
