@@ -108,16 +108,42 @@ export function initWixWhiteCMS($w, wixData, wixSite, wixStorage) {
                     });
                 });
             }
-        }
+        };
 
         handlers[key]();
     }
 }
 
-export function initLayoutPopup($w, wixLocation, wixSite, wixWindow) {
-    $w('Image').onClick(() => {
-        wixSite.lightbox.close({updatedLayoutUrl: (wixWindow.viewMode === 'Preview' ? '' : wixLocation.baseUrl) + '/exhibits/first'})
-    })
+export function initLayoutPopup($w, wixData, wixLocation, wixSite, wixWindow) {
+    const collectionName = 'exhibits';
+    $w.onReady(() => {
+        const {lang} = wixSite.lightbox.getContext();
+        $w('Image').onClick((event) => {
+            const titleFromUrl = wixLocation.path[wixLocation.path.length - 1];
+            return wixData.query(collectionName)
+                .find()
+                .then(results => {
+                    const itemIndex = results.items.findIndex((resultItem) => encodeUrl(resultItem.title) === encodeUrl(titleFromUrl));
+                    if (itemIndex === -1) {
+                        return;
+                    }
+                    const item = results.items[itemIndex];
+                    const template = event.comp.id;
+                    const cmsKey = getCmsKey(item._id, null, lang);
+                    wixData.get('cms', cmsKey)
+                        .then((item) => {
+                            item.template = template;
+                            return wixData.update('cms', item);
+                        })
+                        .then(() => {
+                            const baseUrl = wixWindow.viewMode === 'Preview' ? '' : wixLocation.baseUrl;
+                            const redirectUrl = `${baseUrl}/${collectionName}/${encodeUrl(item.title)}`;
+                            wixSite.lightbox.close({updatedLayoutUrl: redirectUrl});
+                        });
+                });
+
+        })
+    });
 }
 
 export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWindow, wixLocation) {
@@ -271,7 +297,7 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWind
     }
 
     function openLayout() {
-        wixSite.lightbox.open('layout')
+        wixSite.lightbox.open('layout', {lang})
             .then(({updatedLayoutUrl}) => wixLocation.to(updatedLayoutUrl));
     }
 
@@ -353,7 +379,7 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWind
 
     function updatePage(allPages, exhibits, artists) {
         const dynamicDataset = $w('#dynamicDataset');
-        const customDataset = $w('#templateDataset')
+        const customDataset = $w('#templateDataset');
         let dbItem;
         if (dynamicDataset.length !== 0) {
             dbItem = dynamicDataset.getCurrentItem();
@@ -469,3 +495,8 @@ function addDefaultTextAndSrc(pageItem) {
         components: updatedComponents
     });
 }
+
+function encodeUrl(title) {
+    return title.indexOf('%') === -1 ? encodeURIComponent(title) : title;
+}
+

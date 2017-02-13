@@ -4,31 +4,36 @@
 import wixData from 'wix-data';
 import {ok, notFound, WixRouterSitemapEntry} from "wix-router";
 
-function getPageName(templateVal) {
-    return 'exhibit1';
+function getExhibitPageName(itemId) {
+    return wixData.get('cms', '_' + itemId + '_En')
+        .then((itemData) => {
+            return (itemData && itemData.template) || 'exhibits1';
+        });
 }
 
-
 export function exhibits_Router(request) {
-    let itemName = request.path[0];
+    let itemTitle = request.path[0];
+    let itemFromDB, seoData;
     return wixData.query('exhibits')
-        .eq('title', itemName)
         .find()
         .then((results) => {
-            if (results.items.length) {
-                const item = results.items[0];
-                let seoData = {
-                    title: item.title,
+            const matchingItems = results.items.filter((resultItem) => encodeUrl(resultItem.title) === encodeUrl(itemTitle));
+            if (matchingItems.length) {
+                itemFromDB = matchingItems[0];
+                seoData = {
+                    title: itemFromDB.title,
                     description: '',
                     noIndex: false,
                     metaTags: {}
                 };
 
                 // Render item page
-                const pageName = item.title;
-                return ok(getPageName(), item, seoData);
+                return getExhibitPageName(itemFromDB._id);
             }
-
+        }).then((pageName) => {
+            if (pageName) {
+                return ok(pageName, itemFromDB, seoData);
+            }
             return notFound();
         });
 }
@@ -37,12 +42,19 @@ export function exhibits_SiteMap() {
     return wixData.query('exhibits')
         .find()
         .then(function (results) {
-            return results.items.map((item) => {
+            return Promise.all(results.items.map((item) => {
                 let entry = new WixRouterSitemapEntry();
-                entry.pageName = getPageName();
-                entry.url = '/exhibits/' + item.title;
-                entry.title = item.title;
-                return entry;
-            });
+                return getExhibitPageName(item._id)
+                    .then((pageName) => {
+                        entry.pageName = pageName;
+                        entry.url = '/exhibits/' + encodeUrl(item.title);
+                        entry.title = encodeUrl(item.title);
+                        return entry;
+                    });
+            }));
         });
+}
+
+function encodeUrl(title) {
+    return title.indexOf('%') === -1 ? encodeURIComponent(title) : title;
 }
