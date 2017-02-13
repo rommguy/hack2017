@@ -493,7 +493,7 @@ function getCmsKey(itemId, pageComp, lang) {
 
 function addDefaultTextAndSrc(pageItem) {
     const defaultText = "I'm a text";
-    const defaultSrc = 'https://cdn.meme.am/cache/instances/folder852/67008852.jpg';
+    const defaultSrc = 'https://static.wixstatic.com/media/b25591_ab7a33077a334b88bf267f23bf451b6a~mv2.png';
 
     const componentIds = Object.keys(pageItem.components);
     const updatedComponents = {};
