@@ -242,16 +242,14 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWind
     }
 
     function openCMS() {
-        const dataset = $w('#dynamicDataset');
-        const isDynamic = !!dataset;
-        let dbItem;
-        if (dataset.length !== 0) {
-            dbItem = dataset.getCurrentItem();
+        let dbItem = getDbItem();
+        if (dbItem === null) {
+            return;
         }
+
         const page = getCurrentPage();
 
         wixSite.lightbox.open('cms', {
-                isDynamic,
                 lang,
                 itemId: dbItem && dbItem._id,
                 page: pageToJSON(page),
@@ -259,6 +257,21 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWind
                 components: sortComponents(page)
             }
         ).then(bindMasterEvents);
+    }
+
+    function getDbItem() {
+        const dynamicDataset = $w('#dynamicDataset');
+        const customDataset = $w('#templateDataset');
+        let dbItem;
+        if (dynamicDataset.length !== 0) {
+            dbItem = dynamicDataset.getCurrentItem();
+        } else if (customDataset.length !== 0 && self.routerData) {
+            dbItem = self.routerData;
+            if (!dbItem) {
+                return null;
+            }
+        }
+        return dbItem;
     }
 
     function openAddPage() {
@@ -342,7 +355,7 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWind
         return Promise.all([wixData.query('cms').find(), wixData.query('exhibits').find(), wixData.query('artists').find()]);
     }
 
-    function pullDBChanges(onData, interval = 500) {
+    function pullDBChanges(onData, interval = 1500) {
         return setInterval(() => {
             if (pausePull) {
                 return
@@ -395,16 +408,9 @@ export function initWixWhite($w, wixData, wixSite, wixStorage, wixUsers, wixWind
     }
 
     function updatePage(allPages, exhibits, artists) {
-        const dynamicDataset = $w('#dynamicDataset');
-        const customDataset = $w('#templateDataset');
-        let dbItem;
-        if (dynamicDataset.length !== 0) {
-            dbItem = dynamicDataset.getCurrentItem();
-        } else if (customDataset.length !== 0 && self.routerData) {
-            dbItem = self.routerData;
-            if (!dbItem) {
-                return;
-            }
+        let dbItem = getDbItem();
+        if (dbItem === null) {
+            return;
         }
 
         const page = allPages.filter((page) => {
